@@ -44,16 +44,11 @@ module Env : Env_type =
 
     (* Creates a closure from an expression and the environment it's
        defined in *)
-    (*let close (exp : expr) (env : env) : value =
-      failwith "close not implemented" ;;*)
     let close (exp : expr) (env : env) : value =
-    Closure(exp, env)
+    Closure (exp, env)
     ;;
 
     (* Looks up the value of a variable in the environment *)
-    (*let lookup (env : env) (varname : varid) : value =
-      failwith "lookup not implemented" ;;*)
-
     let lookup (env : env) (varname : varid) : value =
       try  
         let (_, valref) = List.find (fun (id, _) -> id = varname) env in
@@ -64,9 +59,6 @@ module Env : Env_type =
 
     (* Returns a new environment just like env except that it maps the
        variable varid to loc *)
-    (*let extend (env : env) (varname : varid) (loc : value ref) : env =
-      failwith "extend not implemented" ;;*)
-
     let extend (env : env) (varname : varid) (loc : value ref) : env =
       try 
         let _ = lookup env varname in
@@ -79,9 +71,6 @@ module Env : Env_type =
     (* Returns a printable string representation of a value; the flag
        printenvp determines whether to include the environment in the
        string representation when called on a closure *)
-    (*let value_to_string ?(printenvp : bool = true) (v : value) : string =
-      failwith "value_to_string not implemented" ;;*)
-
     let rec value_to_string ?(printenvp : bool = true) (v : value) : string =
     match v with 
     | Closure(exp, env) -> 
@@ -94,14 +83,11 @@ module Env : Env_type =
     ;;
 
     (* Returns a printable string representation of an environment *)
-    (*let env_to_string (env : env) : string =
-      failwith "env_to_string not implemented" ;;*)
     let env_to_string (env : env) : string =
       "[" ^ (List.fold_right (fun (id, valref) c -> "( " ^ id ^ ") ; ( " ^
       (value_to_string !valref ^ ")") ^ c ) env "") ;;
   end
 ;;
-
 
 (*......................................................................
   Evaluation functions
@@ -133,7 +119,7 @@ let eval_t (exp : expr) (_env : Env.env) : Env.value =
 
 (* The SUBSTITUTION MODEL evaluator -- to be completed *)
 
-(*helper function to evaluate binops *)
+(* helper function to evaluate binops *)
 let eval_binop (b : binop) (e1 : expr) (e2 : expr) : expr =
   match b, e1, e2 with
   | Plus, Num n1, Num n2 -> Num (n1 + n2)
@@ -143,16 +129,13 @@ let eval_binop (b : binop) (e1 : expr) (e2 : expr) : expr =
   | LessThan, e1, e2 -> Bool (e1 < e2)
   | _ -> raise (EvalError "Binop used on incorrect types");;
 
-(*let eval_s (_exp : expr) (_env : Env.env) : Env.value =
-  failwith "eval_s not implemented" ;;*)
-
+(* helper function for implementing eval_s *)
 let rec h_evaluate (exp : expr) : expr = 
   match exp with 
     | Var _ -> raise (EvalError "unbound variable")
     | Bool b -> Bool b
-    (*currently do not need to worry about what the unop is as we only have 1 *)
-    | Unop(_, e) -> 
-        (match (h_evaluate e) with
+    | Unop(_, xp) -> 
+        (match (h_evaluate xp) with
         | Num n -> Num (~- n)
         | _ -> raise (EvalError "attempted to negate a non-integer") )
     | Binop(b, e1, e2) -> eval_binop b (h_evaluate e1) (h_evaluate e2) 
@@ -161,16 +144,16 @@ let rec h_evaluate (exp : expr) : expr =
         | Bool true -> h_evaluate e2
         | Bool false -> h_evaluate e3
         | _ -> raise (EvalError ": is not of type bool ")) 
-    (*if we find a unapplied function we should just reuturn it as utop does*)
-    | Fun(id, e) -> Fun(id, e)
-    | Let(id, e1, e2)-> 
-        (*first case covers aliasing, i.e let x = y in let y = ... *)
-        (match e2 with 
+    (* if we find a unapplied function, just reuturn it as utop does *)
+    | Fun(id, xp) -> Fun(id, xp)
+    | Let(id, xp1, xp2)-> 
+        (* first case covers aliasing, i.e let x = y in let y = ... *)
+        (match xp2 with 
         | Let(id2, def, body) -> 
             if id = id2 then h_evaluate (Let(id, def, body))
-            else h_evaluate (Let(id2, subst id e1 def, subst id e1 body))
-        | _ -> h_evaluate (subst id e1 e2))
-    | Letrec(id, recfun, e2) -> 
+            else h_evaluate (Let(id2, subst id xp1 def, subst id xp1 body))
+        | _ -> h_evaluate (subst id xp1 xp2))
+    | Letrec(id, recfun, xp2) -> 
         let (recfun_id, recfun_body) = 
           (match recfun with
           | Fun(recfun_id, recfun_body) -> recfun_id, recfun_body
@@ -178,107 +161,103 @@ let rec h_evaluate (exp : expr) : expr =
         let newvar = new_varname () in
         let newrecfun = Fun(newvar, subst recfun_id (Var newvar) recfun_body) in
         let newrec = subst id (Letrec(id, newrecfun, Var id)) recfun in
-        h_evaluate (subst id newrec e2)
+        h_evaluate (subst id newrec xp2)
     | Raise -> raise EvalException
     | Unassigned -> raise (EvalError "Unassigned variable")
-    | App (f, e1) ->
-        (match h_evaluate f, h_evaluate e1 with
-        | (Fun(id, body), e) -> 
-        h_evaluate (subst id (h_evaluate e) body )
+    | App (f, xp1) ->
+        (match h_evaluate f, h_evaluate xp1 with
+        | (Fun(id, body), xp) -> 
+        h_evaluate (subst id (h_evaluate xp) body )
         | _ -> raise (EvalError "this is not a function it cannot be applied"))
     | Num n -> Num n ;;
 
+(* The substitution evaluator *)
 let eval_s (exp : expr) (_env : Env.env) : Env.value =
   Env.Val (h_evaluate exp) ;;
      
 (* The DYNAMICALLY-SCOPED ENVIRONMENT MODEL evaluator -- to be
    completed *)
 
-(*helper function to find find value of var in env *)
+(* helper function to find find value of var in env *)
 let replace id env : expr = 
   match Env.lookup env id with
   | Env.Val(expr) -> expr
   | Env.Closure(expr, _) -> expr ;;
 
-
-(*let eval_d (_exp : expr) (_env : Env.env) : Env.value =
-  failwith "eval_d not implemented" ;;*)
-
+(* helper function for dynamically_scoped environment model evaluator *)
 let rec heval_d (exp : expr) (env : Env.env): expr =
   match exp with 
   | Var id -> heval_d (replace id env) env
   | Bool b -> Bool b
-  | Unop(_, e) -> 
-      (match (heval_d e env) with
+  | Unop(_, xp) -> 
+      (match (heval_d xp env) with
       | Num n -> Num (~- n)
       | _ -> raise (EvalError "attempted to negate a non-integer"))
-  | Binop(b, e1, e2) -> eval_binop b (heval_d e1 env) (heval_d e2 env) 
-  | Conditional(e1, e2, e3) ->
-      (match heval_d e1 env with 
-      | Bool true -> heval_d e2 env
-      | Bool false -> heval_d e3 env
-      | _ -> raise (EvalError (exp_to_concrete_string e1 ^": is not of type bool "))) 
-  | Fun(id, e) -> Fun(id, e)
-  | Let(id, e1, e2)-> heval_d e2 (Env.extend env id (ref (Env.Val e1))) 
-  | Letrec(id, recfun, e2) ->
+  | Binop(b, xp1, xp2) -> eval_binop b (heval_d xp1 env) (heval_d xp2 env) 
+  | Conditional(xp1, xp2, xp3) ->
+      (match heval_d xp1 env with 
+      | Bool true -> heval_d xp2 env
+      | Bool false -> heval_d xp3 env
+      | _ -> raise (EvalError (exp_to_concrete_string xp1 ^": is not of type bool "))) 
+  | Fun(id, xp) -> Fun(id, xp)
+  | Let(id, xp1, xp2)-> heval_d xp2 (Env.extend env id (ref (Env.Val xp1))) 
+  | Letrec(id, recfun, xp2) ->
       let eval_recfun = (heval_d recfun (Env.extend env id (ref 
                         (Env.Val Unassigned)))) in
-      heval_d e2 (Env.extend env id (ref (Env.Val eval_recfun)))
+      heval_d xp2 (Env.extend env id (ref (Env.Val eval_recfun)))
   | Raise -> raise EvalException
   | Unassigned -> raise (EvalError "Unassigned variable")
-  | App(f, e1) ->
-      (match heval_d f env, heval_d e1 env with
-        | (Fun(id, body), e ) ->
-        heval_d body (Env.extend env id (ref (Env.Val e)))  
+  | App(f, xp1) ->
+      (match heval_d f env, heval_d xp1 env with
+        | (Fun(id, body), xp) ->
+        heval_d body (Env.extend env id (ref (Env.Val xp)))  
         | _ -> raise (EvalError "this is not a function it cannot be applied"))
   | Num n -> Num n;;
 
-  let rec eval_d (exp : expr) (_env : Env.env) : Env.value =
+(* dynamically_scoped environment model evaluator *)
+let eval_d (exp : expr) (_env : Env.env) : Env.value =
     Env.Val (h_evaluate exp) ;;
        
 (* The LEXICALLY-SCOPED ENVIRONMENT MODEL evaluator -- optionally
    completed as (part of) your extension *)
-   
-(*let eval_l (_exp : expr) (_env : Env.env) : Env.value =
-  failwith "eval_l not implemented" ;;*)
 
 let rec eval_l (exp : expr) (env : Env.env) : Env.value =
   let rec heval_l (inval : Env.value) (env : Env.env) : Env.value =   
     let exp =
       match inval with 
-      | Env.Val e -> e
-      | Env.Closure(e, _) -> e in
+      | Env.Val xp -> xp
+      | Env.Closure(xp, _) -> xp in
     match exp with 
     | Var id -> heval_l (Env.Val( replace id env)) env
     | Bool b -> (Env.Val (Bool b))
-    | Unop(_, e) -> 
-        (match (heval_l (Env.Val e) env) with
+    | Unop(_, xp) -> 
+        (match (heval_l (Env.Val xp) env) with
         | Env.Val(Num n) -> (Env.Val (Num (~- n)))
         | _ -> raise (EvalError "attempted to negate a non-integer"))
-    | Binop(b, e1, e2) ->
-        (match (heval_l (Env.Val e1) env), (heval_l (Env.Val e2) env) with
-        | Env.Val e1, Env.Val e2 ->
-              Env.Val (eval_binop b e1 e2)
+    | Binop(b, xp1, xp2) ->
+        (match (heval_l (Env.Val xp1) env), (heval_l (Env.Val xp2) env) with
+        | Env.Val xp1, Env.Val xp2 ->
+              Env.Val (eval_binop b xp1 xp2)
         | _ -> raise (EvalError "Incompatabile types for binop"))
-    | Conditional(e1, e2, e3) ->
-        (match heval_l (Env.Val e1) env with 
-        | Env.Val(Bool true) -> heval_l (Env.Val e2) env
-        | Env.Val(Bool false) -> heval_l (Env.Val e3) env
-        | _ -> raise (EvalError (exp_to_concrete_string e1 ^": is not of type bool ")))
-    | Fun(id, e) -> (Env.close (Fun(id, e)) env)
-    | Let(id, e1, e2)->
-          heval_l (Env.Val e2) (Env.extend env id (ref (Env.close e1 env)))  
-    | Letrec(id, recfun, e2) ->
+    | Conditional(xp1, xp2, xp3) ->
+        (match heval_l (Env.Val xp1) env with 
+        | Env.Val(Bool true) -> heval_l (Env.Val xp2) env
+        | Env.Val(Bool false) -> heval_l (Env.Val xp3) env
+        | _ -> raise (EvalError (exp_to_concrete_string xp1 ^": is not of type bool ")))
+    | Fun(id, xp) -> (Env.close (Fun(id, xp)) env)
+    | Let(id, xp1, xp2)->
+          heval_l (Env.Val xp2) (Env.extend env id (ref (Env.close xp1 env)))  
+    | Letrec(id, recfun, xp2) ->
         let eval_recfun = (eval_l recfun (Env.extend env id
                           (ref (Env.Val Unassigned)))) in
-         (eval_l e2  (Env.extend env id (ref eval_recfun)))
+         (eval_l xp2  (Env.extend env id (ref eval_recfun)))
     | Raise -> raise EvalException
     | Unassigned -> raise (EvalError "Unassigned variable")
-    | App(e1, e2) ->
-        (match heval_l (Env.Val e1) env with
+    | App(xp1, xp2) ->
+        (match heval_l (Env.Val xp1) env with
         | Env.Closure(Fun(id, body), c_env ) ->
             heval_l (Env.Val body) (Env.extend c_env id 
-            (ref (heval_l (Env.Val e2) env)))
+            (ref (heval_l (Env.Val xp2) env)))
         | _ -> raise (EvalError "this is not a function it cannot be applied"))
     | Num n -> (Env.Val(Num n)) in
   match heval_l (Env.Val exp) env with
@@ -300,7 +279,5 @@ let eval_e _ =
    implement them. (We will directly unit test the four evaluators
    above, not the evaluate function, so it doesn't matter how it's set
    when you submit your solution.) *)
-   
-(*let evaluate = eval_t ;;*)
 
 let evaluate = eval_l ;;

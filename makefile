@@ -4,7 +4,7 @@ all: evaluation expr tests
 evaluation: evaluation.ml
 	ocamlbuild -use-ocamlfind evaluation.byte
 
-tests: test.ml
+tests: tests.ml
 	ocamlbuild -use-ocamlfind tests.byte
 
 expr: expr.ml

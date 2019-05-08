@@ -63,9 +63,6 @@ let vars_of_list : string list -> varidset =
 (* free_vars : expr -> varidset
    Return a set of the variable names that are free in expression
    exp *)
-(*let free_vars (exp : expr) : varidset =
-  failwith "free_vars not implemented" ;;*)
-
 let free_vars (exp : expr) : varidset =
   let rec all_vars (e : expr) (all : varidset) (used : varidset)
           : (varidset * varidset) =
@@ -102,17 +99,14 @@ let free_vars (exp : expr) : varidset =
         let rall, rused = all_vars e2 all used in
         (SS.union lall rall), (SS.union lused rused)) in 
   let all, used = all_vars exp SS.empty SS.empty in
-  let free = SS.filter (fun x -> not (SS.mem x used)) all in free;;
+  let free = SS.filter (fun x -> not (SS.mem x used)) all in free
+;;
 
 (* new_varname : unit -> varid
    Return a fresh variable, constructed with a running counter a la
    gensym. Assumes no variable names use the prefix "var". (Otherwise,
    they might accidentally be the same as a generated variable name.) *)
-(*)
-  let new_varname () : varid =
-  failwith "new_varname not implemented" ;;*)
-
-  let new_varname () : varid =
+let new_varname () : varid =
   let ctr = ref 0 in
     let v = "x" ^ string_of_int (!ctr) in
       ctr := !ctr + 1;
@@ -127,13 +121,8 @@ let free_vars (exp : expr) : varidset =
 
 (* subst : varid -> expr -> expr -> expr
    Substitute repl for free occurrences of var_name in exp *)
-(*let subst (var_name : varid) (repl : expr) (exp : expr) : expr =
-  failwith "subst not implemented" ;;*)
-
-(* Substitute [repl] for free occurrences of [var_name] in [exp] *)
 let rec subst (var_name : varid) (repl : expr) (exp : expr) : expr =
-  (*we use a helper function so that we can keep track of the free variables
-   * if in the original expression*)
+  (* use a helper function to keep track of free variables *)
   let free_var_set = free_vars exp in
   let rec subst_helper (var_name : varid) (repl : expr) (exp : expr) : expr =
     let part_subst = subst_helper var_name repl in
@@ -154,7 +143,7 @@ let rec subst (var_name : varid) (repl : expr) (exp : expr) : expr =
         then Let(id, part_subst e1, e2)
         else if id <> var_name && not (SS.mem id (free_vars repl))  
         then Let(id, part_subst e1, part_subst e2)
-    (*unsure if order of subst matters here, if errors come back to this line *)
+    (* unsure if order of subst matters here, if errors come back to this line *)
         else let nvar = new_varname () in 
           Let(nvar, part_subst e1, subst_helper id (Var nvar) (part_subst e2))
     | Letrec (id, e1, e2) ->
@@ -170,7 +159,8 @@ let rec subst (var_name : varid) (repl : expr) (exp : expr) : expr =
     | Unassigned -> Unassigned  
     | Num n -> Num n
     | Bool b -> Bool b in
-  subst_helper var_name repl exp;;
+  subst_helper var_name repl exp
+;;
 
 let binop_to_abs_string (b : binop) : string =
   match b with
@@ -178,9 +168,10 @@ let binop_to_abs_string (b : binop) : string =
   | Minus -> "-"
   | Times -> "*"
   | Equals -> "="
-  | LessThan -> "<";;
+  | LessThan -> "<"
+;;
 
-  (*using match statement so that this is easier to extend later *)
+(*using match statement so that this is easier to extend later *)
 let unop_to_abs_string (u : unop) : string =
     match u with
     | Negate -> "~" ;;
@@ -192,10 +183,6 @@ let unop_to_abs_string (u : unop) : string =
     
 (* exp_to_concrete_string : expr -> string
    Returns a concrete syntax string representation of the expr *)
-(*let exp_to_concrete_string (exp : expr) : string =
-  failwith "exp_to_concrete_string not implemented" ;;*)
-
-(* exp_to_concrete_string -- Returns a string representation of the expr *)
 let rec exp_to_concrete_string (exp : expr) : string =
   (match exp with
   | Var id -> id
@@ -216,40 +203,33 @@ let rec exp_to_concrete_string (exp : expr) : string =
   | Raise -> "raise"
   | Unassigned -> "Unassigned"
   | App(e1, e2) -> exp_to_concrete_string e1 ^ " " ^ exp_to_concrete_string e2)
-  ;; 
+;; 
 
 (* exp_to_abstract_string : expr -> string
    Returns a string representation of the abstract syntax of the expr *)
-
-(*let exp_to_abstract_string (exp : expr) : string =
-  failwith "exp_to_abstract_string not implemented" ;;*)
-
-
-(* exp_to_abstract_string: Returns a string representation of the abstract
-   syntax of the expr *)
-   let rec exp_to_abstract_string (exp : expr) : string =
-    match exp with
-    | Var id -> "Var(" ^ id ^ ")"
-    | Num x -> "Num(" ^ string_of_int x ^ ")"
-    | Bool b -> "Bool (" ^ string_of_bool b ^ ")"
-    | Unop(u, e) ->
-        "(" ^unop_to_abs_string u ^ ", " ^ exp_to_abstract_string e ^ ")"
-    | Binop(b, e1, e2) -> 
-        "Binop" ^ "(" ^ binop_to_abs_string b ^ ", " ^ exp_to_abstract_string e1
-         ^ ", " ^ exp_to_abstract_string e2 ^ ")"
-    | Conditional(e1, e2, e3) -> 
-        "Conditional(" ^ exp_to_abstract_string e1 ^ ", " ^ 
-         exp_to_abstract_string e2 ^ ", " ^ exp_to_abstract_string e3 ^ ")"
-    | Fun(id, e1) -> "Fun(" ^ id ^ ", " ^ exp_to_abstract_string e1 ^")"
-    | Let(id, e1, e2) -> 
-        "Let(" ^ id ^ ", " ^ exp_to_abstract_string e1 ^ ", " 
-        ^ exp_to_abstract_string e2 ^ ")"
-    | Letrec(id, e1, e2) ->
-        "Letrec(" ^ id ^ ", " ^ exp_to_abstract_string e1 ^ ", " ^
-        exp_to_abstract_string e2 ^ ")"
-    | Raise -> "Raise"
-    | Unassigned -> "Unassigned"
-    | App (e1, e2) -> 
-        "App(" ^ exp_to_abstract_string e1 ^ ", " ^ exp_to_abstract_string e2 
-        ^ ")";;
-        
+let rec exp_to_abstract_string (exp : expr) : string =
+  match exp with
+  | Var id -> "Var(" ^ id ^ ")"
+  | Num x -> "Num(" ^ string_of_int x ^ ")"
+  | Bool b -> "Bool (" ^ string_of_bool b ^ ")"
+  | Unop(u, e) ->
+      "(" ^unop_to_abs_string u ^ ", " ^ exp_to_abstract_string e ^ ")"
+  | Binop(b, e1, e2) -> 
+      "Binop" ^ "(" ^ binop_to_abs_string b ^ ", " ^ exp_to_abstract_string e1
+        ^ ", " ^ exp_to_abstract_string e2 ^ ")"
+  | Conditional(e1, e2, e3) -> 
+      "Conditional(" ^ exp_to_abstract_string e1 ^ ", " ^ 
+        exp_to_abstract_string e2 ^ ", " ^ exp_to_abstract_string e3 ^ ")"
+  | Fun(id, e1) -> "Fun(" ^ id ^ ", " ^ exp_to_abstract_string e1 ^")"
+  | Let(id, e1, e2) -> 
+      "Let(" ^ id ^ ", " ^ exp_to_abstract_string e1 ^ ", " 
+      ^ exp_to_abstract_string e2 ^ ")"
+  | Letrec(id, e1, e2) ->
+      "Letrec(" ^ id ^ ", " ^ exp_to_abstract_string e1 ^ ", " ^
+      exp_to_abstract_string e2 ^ ")"
+  | Raise -> "Raise"
+  | Unassigned -> "Unassigned"
+  | App (e1, e2) -> 
+      "App(" ^ exp_to_abstract_string e1 ^ ", " ^ exp_to_abstract_string e2 
+      ^ ")"
+;;
