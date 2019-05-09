@@ -138,11 +138,11 @@ let rec h_evaluate (exp : expr) : expr =
         (match (h_evaluate xp) with
         | Num n -> Num (~- n)
         | _ -> raise (EvalError "attempted to negate a non-integer") )
-    | Binop(b, e1, e2) -> eval_binop b (h_evaluate e1) (h_evaluate e2) 
-    | Conditional(e1, e2, e3) -> 
-        (match h_evaluate e1 with 
-        | Bool true -> h_evaluate e2
-        | Bool false -> h_evaluate e3
+    | Binop(b, xp1, xp2) -> eval_binop b (h_evaluate xp1) (h_evaluate xp2) 
+    | Conditional(xp1, xp2, xp3) -> 
+        (match h_evaluate xp1 with 
+        | Bool true -> h_evaluate xp2
+        | Bool false -> h_evaluate xp3
         | _ -> raise (EvalError ": is not of type bool ")) 
     (* if we find a unapplied function, just reuturn it as utop does *)
     | Fun(id, xp) -> Fun(id, xp)

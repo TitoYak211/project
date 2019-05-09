@@ -51,7 +51,7 @@ In this way it is like the substitution model but more flexible, because if we e
 ==> 10
 ``` 
 
-The implementation of this is fairly similar to the dynamic environment. One of the obvious differences is the large recursive function in eval_l called heval_l.
+My implementation here is quite similar to that of dynamic environment. One of the few differences is the large recursive function in eval_l called heval_l.
 In eval_l I call heval_l on the input and match the output on heval_l to return an expr.
 
 The prime spine of heval_l is a match statement on expr and then recursively calling heval_l on subcomponents. Heval_l eventually returns a Env.Val for every type of exp except for functions where we return a Env.Closure of the function and current environment.

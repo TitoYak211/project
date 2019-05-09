@@ -64,39 +64,39 @@ let vars_of_list : string list -> varidset =
    Return a set of the variable names that are free in expression
    exp *)
 let free_vars (exp : expr) : varidset =
-  let rec all_vars (e : expr) (all : varidset) (used : varidset)
+  let rec all_vars (xp : expr) (all : varidset) (used : varidset)
           : (varidset * varidset) =
-    (match e with
+    (match xp with
     | Var id -> SS.add id all, used
     | Num _ -> all, used
     | Bool _ -> all, used
-    | Unop(_, e1) -> all_vars e1 all used 
-    | Binop(_, e1, e2) ->
-        let lall, lused = all_vars e1 all used in
-        let rall, rused = all_vars e2 all used in
+    | Unop(_, xp1) -> all_vars xp1 all used 
+    | Binop(_, xp1, xp2) ->
+        let lall, lused = all_vars xp1 all used in
+        let rall, rused = all_vars xp2 all used in
         (SS.union lall rall), (SS.union lused rused) 
-    | Conditional(e1, e2, e3) -> 
-        let lall, lused = all_vars e1 all used in
-        let mall, mused = all_vars e2 all used in
-        let rall, rused = all_vars e3 all used in
+    | Conditional(xp1, xp2, xp3) -> 
+        let lall, lused = all_vars xp1 all used in
+        let mall, mused = all_vars xp2 all used in
+        let rall, rused = all_vars xp3 all used in
         (SS.union (SS.union lall mall) rall),
         (SS.union (SS.union lused mused) rused) 
-    | Fun(id, e1) -> all_vars e1 all (SS.add id used)
-    | Let(id, e1, e2) -> 
+    | Fun(id, xp1) -> all_vars xp1 all (SS.add id used)
+    | Let(id, xp1, xp2) -> 
         let nused = SS.add id used in
-        let lall, lused = all_vars e1 all nused in
-        let rall, rused = all_vars e2 all nused in
+        let lall, lused = all_vars xp1 all nused in
+        let rall, rused = all_vars xp2 all nused in
         (SS.union lall rall), (SS.union lused rused)
-    | Letrec(id, e1, e2) -> 
+    | Letrec(id, xp1, xp2) -> 
         let nused = SS.add id used in
-        let lall, lused = all_vars e1 all nused in
-        let rall, rused = all_vars e2 all nused in
+        let lall, lused = all_vars xp1 all nused in
+        let rall, rused = all_vars xp2 all nused in
         (SS.union lall rall), (SS.union lused rused)
     | Raise -> all, used
     | Unassigned -> all, used
-    | App(e1, e2) ->
-        let lall, lused = all_vars e1 all used in
-        let rall, rused = all_vars e2 all used in
+    | App(xp1, xp2) ->
+        let lall, lused = all_vars xp1 all used in
+        let rall, rused = all_vars xp2 all used in
         (SS.union lall rall), (SS.union lused rused)) in 
   let all, used = all_vars exp SS.empty SS.empty in
   let free = SS.filter (fun x -> not (SS.mem x used)) all in free
@@ -107,9 +107,9 @@ let free_vars (exp : expr) : varidset =
    gensym. Assumes no variable names use the prefix "var". (Otherwise,
    they might accidentally be the same as a generated variable name.) *)
 let new_varname () : varid =
-  let ctr = ref 0 in
-    let v = "x" ^ string_of_int (!ctr) in
-      ctr := !ctr + 1;
+  let counter = ref 0 in
+    let v = "x" ^ string_of_int (!counter) in
+      counter := !counter + 1;
   v ;;  
 (*......................................................................
   Substitution 
@@ -128,32 +128,32 @@ let rec subst (var_name : varid) (repl : expr) (exp : expr) : expr =
     let part_subst = subst_helper var_name repl in
     match exp with
     | Var id -> if id = var_name && SS.mem id free_var_set then repl else Var id
-    | Unop(u, e1) -> Unop(u, part_subst e1)
-    | Binop(b, e1, e2) -> Binop(b, part_subst e1, part_subst e2 )
-    | Conditional (e1, e2, e3) ->
-        Conditional (part_subst e1, part_subst e2, part_subst e3)
-    | Fun (id, e1) -> 
-        if id = var_name then Fun(id, e1)
+    | Unop(u, xp1) -> Unop(u, part_subst xp1)
+    | Binop(b, xp1, xp2) -> Binop(b, part_subst xp1, part_subst xp2 )
+    | Conditional (xp1, xp2, xp3) ->
+        Conditional (part_subst xp1, part_subst xp2, part_subst xp3)
+    | Fun (id, xp1) -> 
+        if id = var_name then Fun(id, xp1)
         else if not (SS.mem id (free_vars repl))
-        then Fun(id, part_subst e1)
+        then Fun(id, part_subst xp1)
         else let nvar = new_varname () in
-        Fun(nvar, subst_helper id (Var nvar) (part_subst e1))
-    | Let (id, e1, e2) -> 
+        Fun(nvar, subst_helper id (Var nvar) (part_subst xp1))
+    | Let (id, xp1, xp2) -> 
         if id = var_name 
-        then Let(id, part_subst e1, e2)
+        then Let(id, part_subst xp1, xp2)
         else if id <> var_name && not (SS.mem id (free_vars repl))  
-        then Let(id, part_subst e1, part_subst e2)
+        then Let(id, part_subst xp1, part_subst xp2)
         else let nvar = new_varname () in 
-          Let(nvar, part_subst e1, subst_helper id (Var nvar) (part_subst e2))
-    | Letrec (id, e1, e2) ->
+          Let(nvar, part_subst xp1, subst_helper id (Var nvar) (part_subst xp2))
+    | Letrec (id, xp1, xp2) ->
         if id = var_name 
-        then Letrec(id, part_subst e1, part_subst e2)
+        then Letrec(id, part_subst xp1, part_subst xp2)
         else if id <> var_name && not (SS.mem id (free_vars repl)) 
-        then Letrec(id, part_subst e1, part_subst e2) 
+        then Letrec(id, part_subst xp1, part_subst xp2) 
         else let nvar = new_varname () in
-        Letrec(id, subst var_name repl e1 , subst var_name repl 
-        ((subst id (Var nvar) e2))) 
-    | App(e1, e2) -> App (part_subst e1, part_subst e2)
+        Letrec(id, subst var_name repl xp1 , subst var_name repl 
+        ((subst id (Var nvar) xp2))) 
+    | App(xp1, xp2) -> App (part_subst xp1, part_subst xp2)
     | Raise -> Raise
     | Unassigned -> Unassigned  
     | Num n -> Num n
@@ -186,23 +186,23 @@ let rec exp_to_concrete_string (exp : expr) : string =
   | Var id -> id
   | Num n -> string_of_int n
   | Bool b -> string_of_bool b
-  | Unop(u, e1) -> unop_to_abs_string u ^ (exp_to_concrete_string e1)
-  | Binop(b, e1, e2) -> 
-      exp_to_concrete_string e1 ^ binop_to_abs_string b
-      ^ exp_to_concrete_string e2
-  | Conditional(e1, e2, e3) ->
-      "if " ^ exp_to_concrete_string e1 ^ " then " 
-      ^ exp_to_concrete_string e2 ^ " else " ^ exp_to_concrete_string e3
-  | Fun (id, e) ->   "fun " ^ id ^ " -> " ^ (exp_to_concrete_string e)
-  | Let(id, e1, e2) ->
-      "let " ^ id ^ " = " ^ exp_to_concrete_string e1 ^ " in "
-      ^ exp_to_concrete_string e2
-  | Letrec(id, e1, e2) ->
-      "let rec " ^ id ^ " = " ^ exp_to_concrete_string e1 ^ " in " 
-      ^ exp_to_concrete_string e2 
+  | Unop(u, xp1) -> unop_to_abs_string u ^ (exp_to_concrete_string xp1)
+  | Binop(b, xp1, xp2) -> 
+      exp_to_concrete_string xp1 ^ binop_to_abs_string b
+      ^ exp_to_concrete_string xp2
+  | Conditional(xp1, xp2, xp3) ->
+      "if " ^ exp_to_concrete_string xp1 ^ " then " 
+      ^ exp_to_concrete_string xp2 ^ " else " ^ exp_to_concrete_string xp3
+  | Fun (id, xp) ->   "fun " ^ id ^ " -> " ^ (exp_to_concrete_string xp)
+  | Let(id, xp1, xp2) ->
+      "let " ^ id ^ " = " ^ exp_to_concrete_string xp1 ^ " in "
+      ^ exp_to_concrete_string xp2
+  | Letrec(id, xp1, xp2) ->
+      "let rec " ^ id ^ " = " ^ exp_to_concrete_string xp1 ^ " in " 
+      ^ exp_to_concrete_string xp2 
   | Raise -> "raise"
   | Unassigned -> "Unassigned"
-  | App(e1, e2) -> exp_to_concrete_string e1 ^ " " ^ exp_to_concrete_string e2)
+  | App(xp1, xp2) -> exp_to_concrete_string xp1 ^ " " ^ exp_to_concrete_string xp2)
 ;; 
 
 (* exp_to_abstract_string : expr -> string
@@ -212,24 +212,24 @@ let rec exp_to_abstract_string (exp : expr) : string =
   | Var id -> "Var(" ^ id ^ ")"
   | Num x -> "Num(" ^ string_of_int x ^ ")"
   | Bool b -> "Bool (" ^ string_of_bool b ^ ")"
-  | Unop(u, e) ->
-      "(" ^unop_to_abs_string u ^ ", " ^ exp_to_abstract_string e ^ ")"
-  | Binop(b, e1, e2) -> 
-      "Binop" ^ "(" ^ binop_to_abs_string b ^ ", " ^ exp_to_abstract_string e1
-        ^ ", " ^ exp_to_abstract_string e2 ^ ")"
-  | Conditional(e1, e2, e3) -> 
-      "Conditional(" ^ exp_to_abstract_string e1 ^ ", " ^ 
-        exp_to_abstract_string e2 ^ ", " ^ exp_to_abstract_string e3 ^ ")"
-  | Fun(id, e1) -> "Fun(" ^ id ^ ", " ^ exp_to_abstract_string e1 ^")"
-  | Let(id, e1, e2) -> 
-      "Let(" ^ id ^ ", " ^ exp_to_abstract_string e1 ^ ", " 
-      ^ exp_to_abstract_string e2 ^ ")"
-  | Letrec(id, e1, e2) ->
-      "Letrec(" ^ id ^ ", " ^ exp_to_abstract_string e1 ^ ", " ^
-      exp_to_abstract_string e2 ^ ")"
+  | Unop(u, xp) ->
+      "(" ^unop_to_abs_string u ^ ", " ^ exp_to_abstract_string xp ^ ")"
+  | Binop(b, xp1, xp2) -> 
+      "Binop" ^ "(" ^ binop_to_abs_string b ^ ", " ^ exp_to_abstract_string xp1
+        ^ ", " ^ exp_to_abstract_string xp2 ^ ")"
+  | Conditional(xp1, xp2, xp3) -> 
+      "Conditional(" ^ exp_to_abstract_string xp1 ^ ", " ^ 
+        exp_to_abstract_string xp2 ^ ", " ^ exp_to_abstract_string xp3 ^ ")"
+  | Fun(id, xp1) -> "Fun(" ^ id ^ ", " ^ exp_to_abstract_string xp1 ^")"
+  | Let(id, xp1, xp2) -> 
+      "Let(" ^ id ^ ", " ^ exp_to_abstract_string xp1 ^ ", " 
+      ^ exp_to_abstract_string xp2 ^ ")"
+  | Letrec(id, xp1, xp2) ->
+      "Letrec(" ^ id ^ ", " ^ exp_to_abstract_string xp1 ^ ", " ^
+      exp_to_abstract_string xp2 ^ ")"
   | Raise -> "Raise"
   | Unassigned -> "Unassigned"
-  | App (e1, e2) -> 
-      "App(" ^ exp_to_abstract_string e1 ^ ", " ^ exp_to_abstract_string e2 
+  | App (xp1, xp2) -> 
+      "App(" ^ exp_to_abstract_string xp1 ^ ", " ^ exp_to_abstract_string xp2 
       ^ ")"
 ;;
