@@ -188,16 +188,18 @@ let rec exp_to_concrete_string (exp : expr) : string =
   | Bool b -> string_of_bool b
   | Unop(u, e1) -> unop_to_abs_string u ^ (exp_to_concrete_string e1)
   | Binop(b, e1, e2) -> 
-      exp_to_concrete_string e1 ^ binop_to_abs_string b ^ exp_to_concrete_string e2
+      exp_to_concrete_string e1 ^ binop_to_abs_string b
+      ^ exp_to_concrete_string e2
   | Conditional(e1, e2, e3) ->
-      "if " ^ exp_to_concrete_string e1 ^ " then " ^ exp_to_concrete_string e2 ^ " else " 
-      ^ exp_to_concrete_string e3
+      "if " ^ exp_to_concrete_string e1 ^ " then " 
+      ^ exp_to_concrete_string e2 ^ " else " ^ exp_to_concrete_string e3
   | Fun (id, e) ->   "fun " ^ id ^ " -> " ^ (exp_to_concrete_string e)
   | Let(id, e1, e2) ->
-      "let " ^ id ^ " = " ^ exp_to_concrete_string e1 ^ " in " ^ exp_to_concrete_string e2
-
+      "let " ^ id ^ " = " ^ exp_to_concrete_string e1 ^ " in "
+      ^ exp_to_concrete_string e2
   | Letrec(id, e1, e2) ->
-      "let rec " ^ id ^ " = " ^ exp_to_concrete_string e1 ^ " in " ^ exp_to_concrete_string e2 
+      "let rec " ^ id ^ " = " ^ exp_to_concrete_string e1 ^ " in " 
+      ^ exp_to_concrete_string e2 
   | Raise -> "raise"
   | Unassigned -> "Unassigned"
   | App(e1, e2) -> exp_to_concrete_string e1 ^ " " ^ exp_to_concrete_string e2)
