@@ -143,7 +143,6 @@ let rec subst (var_name : varid) (repl : expr) (exp : expr) : expr =
         then Let(id, part_subst e1, e2)
         else if id <> var_name && not (SS.mem id (free_vars repl))  
         then Let(id, part_subst e1, part_subst e2)
-    (* unsure if order of subst matters here, if errors come back to this line *)
         else let nvar = new_varname () in 
           Let(nvar, part_subst e1, subst_helper id (Var nvar) (part_subst e2))
     | Letrec (id, e1, e2) ->
@@ -180,7 +179,6 @@ let unop_to_abs_string (u : unop) : string =
   String representations of expressions
  *)
    
-    
 (* exp_to_concrete_string : expr -> string
    Returns a concrete syntax string representation of the expr *)
 let rec exp_to_concrete_string (exp : expr) : string =
